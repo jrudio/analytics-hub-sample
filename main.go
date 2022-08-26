@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 
+	"cloud.google.com/go/bigquery"
 	analyticshub "google.golang.org/api/analyticshub/v1beta1"
 )
 
@@ -13,6 +14,7 @@ var (
 	exchangeID string
 	listingID  string
 	region     string
+	showTables bool
 )
 
 func init() {
@@ -20,6 +22,7 @@ func init() {
 	flag.StringVar(&exchangeID, "exchange", "", "Analytics Hub exchange id")
 	flag.StringVar(&listingID, "listing", "", "Analytics Hub listing id")
 	flag.StringVar(&region, "region", "", "region of listing")
+	flag.BoolVar(&showTables, "tables", false, "show available bigquery tables")
 }
 
 func main() {
@@ -31,23 +34,30 @@ func main() {
 		return
 	}
 
-	if exchangeID == "" {
-		fmt.Println("exchange id is required")
-
-		return
-	}
-
 	if listingID == "" {
 		fmt.Println("listing id is required")
 
 		return
 	}
 
-	if region == "" {
-		fmt.Println("region is required")
-
+	if showTables {
+		if err := listTables(projectID, listingID); err != nil {
+			fmt.Printf("failed to list tables from listing: %vn", err)
+		}
 		return
 	}
+
+	// if exchangeID == "" {
+	// 	fmt.Println("exchange id is required")
+
+	// 	return
+	// }
+
+	// if region == "" {
+	// 	fmt.Println("region is required")
+
+	// 	return
+	// }
 
 	ctx := context.Background()
 	client, err := analyticshub.NewService(ctx)
@@ -67,11 +77,29 @@ func main() {
 	}
 
 	fmt.Printf("Listing name: %s\nListing Description: %s\n", resp.DisplayName, resp.Description)
+
 }
 
 // TODO: add dataset from listing to project
 
 // TODO: use bq client to list out tables
+
+// listingID == dataset name
+func listTables(projectID, listingID string) error {
+	ctx := context.Background()
+
+	client, err := bigquery.NewClient(ctx, projectID)
+
+	if err != nil {
+		return err
+	}
+
+	tableIterator := client.Dataset(listingID).Tables(ctx)
+
+	fmt.Println(tableIterator.Next())
+
+	return nil
+}
 
 // func getLocations(client *analyticshub.Service) ([]string, error) {
 // 	client.Projects.Locations.DataExchanges.Listings.List()
